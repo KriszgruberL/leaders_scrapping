@@ -37,6 +37,11 @@ def get_first_paragraph(wikipedia_url: str, session: Session) -> str:
     infobox = soup.find("table", attrs={"class": "infobox"})
     if infobox:
         first_paragraph = infobox.find_next_sibling("p")
+        while first_paragraph and (
+            not first_paragraph.get_text(strip=True)
+            or "mw-empty-elt" in first_paragraph.get("class", [])
+        ):
+            first_paragraph = first_paragraph.find_next_sibling("p")
     else:
         first_paragraph = ""
         return first_paragraph
