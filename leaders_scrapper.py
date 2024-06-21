@@ -34,22 +34,24 @@ def get_first_paragraph(wikipedia_url: str, session: Session) -> str:
     soup = BeautifulSoup(r.content, "html.parser")
 
     # Find the first paragraph after the infobox table
-    untreated = soup.find("table", attrs={"class": "infobox"}).find_next_sibling("p").text
+    infobox = soup.find("table", attrs={"class": "infobox"})
+    if infobox:
+        first_paragraph = infobox.find_next_sibling("p")
+    else:
+        first_paragraph = ""
+        return first_paragraph
 
-    # Define regex patterns to remove unwanted text based on the language of the Wikipedia page
-    regex = r'\s?[\[\(\/;][^)\]/;]*[\)\]/;]|\s?ⓘ|\s?Écouter|\s?uitspraak|\s?[a-zA-Z-]+ \S+\);'
-    if 'fr' in wikipedia_url:
-        regex = r'\s*\[.*?\]|\([^\)]*\\s?Écouter|( Écouter)|(Écouter)|\[\d+\]|\xa0|\n$'
-    elif 'nl' in wikipedia_url:
-        regex = r'\[\d+\]|\(uitspraakⓘ\)|uitspraakⓘ|\xa0|\n$'
-    elif 'ru' in wikipedia_url or 'ar' in wikipedia_url:
-        regex = r'\[\d+\]|\xa0|\n$'
-    elif 'en' in wikipedia_url:
-        regex = r'\[\w+\]|;[^;]*;|\(\/[^\)]+\/[^)]*\)|\xa0|\n$'
+    clean_text = first_paragraph.get_text(separator=" ", strip=True)
 
-    # Clean the first paragraph by removing unwanted text
-    first_paragraph = re.sub(regex, '', untreated)
-    return first_paragraph
+    # Define regex patterns to remove unwanted text
+    clean_text = re.sub(r"\[.*?\]", "", clean_text)
+    clean_text = re.sub(r"\([^)]*\)", "", clean_text)
+    clean_text = re.sub(r"/.*?/", "", clean_text)
+    clean_text = re.sub(r"Écouter", " ", clean_text)
+    clean_text = re.sub(r"\s+", " ", clean_text)
+    clean_text = clean_text.replace(" ,", ",").replace(" .", ".").strip()
+
+    return clean_text
 
 
 @print_timing
@@ -78,6 +80,7 @@ def get_leaders():
             try:
                 # Try to get the first paragraph of the leader's Wikipedia page
                 leader['first_paragraph'] = get_first_paragraph(leader['wikipedia_url'], session)
+                time.sleep(0.1)
             except requests.RequestException as e:
                 # Refresh cookies if a request fails
                 cookies = requests.get(f"{url}{cookies_url}").cookies.get_dict()
